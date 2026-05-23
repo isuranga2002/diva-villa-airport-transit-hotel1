@@ -321,6 +321,44 @@ section { padding: clamp(80px, 11vw, 160px) 0; position: relative; }
 .about-stat .num em { font-style: normal; color: var(--c-green); }
 .about-stat .lbl { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--c-muted); margin-top: 10px; }
 
+/* ---- Languages spoken ---- */
+.about-langs {
+  margin-top: 32px;
+  padding-top: 28px;
+  border-top: 1px solid var(--c-line);
+}
+.about-langs-label {
+  font-size: 11px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.about-langs-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.about-langs-tags span {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 16px;
+  background: var(--c-cream);
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-ink-2);
+  letter-spacing: .03em;
+  transition: background .2s, border-color .2s, color .2s;
+}
+.about-langs-tags span:hover {
+  background: var(--c-blue);
+  border-color: var(--c-blue);
+  color: #fff;
+}
+
 /* ========== SERVICES ========== */
 .services { background: #fff; padding-top: clamp(40px, 4vw, 60px); }
 .svc-grid {
