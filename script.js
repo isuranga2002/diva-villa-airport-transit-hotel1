@@ -169,7 +169,9 @@ function closeModal() {
   modal.querySelector('.modal-box').classList.remove('in');
   setTimeout(() => {
     modal.classList.remove('open');
-    document.body.style.overflow = '';
+    if (!document.getElementById('whatsapp-enquiry-modal')?.classList.contains('open')) {
+      document.body.style.overflow = '';
+    }
   }, 320);
 }
 
@@ -192,14 +194,145 @@ if (modal) {
   });
 }
 
-// WhatsApp booking
-document.querySelectorAll('[data-whatsapp]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const num = '94712025453';
-    const msg = encodeURIComponent("Hello, I'd like to enquire about a room booking at Diva Villa Transit Hotel. Please share availability and details.");
-    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+// WhatsApp enquiries: collect the essentials on-site, then open a ready-to-send message.
+const whatsappButtons = document.querySelectorAll('[data-whatsapp]');
+if (whatsappButtons.length) {
+  const whatsappNumber = '94712025453';
+  const whatsappFlows = {
+    booking: {
+      title: 'Booking enquiry',
+      opening: 'Hello Diva Villa, I would like to make a booking enquiry.',
+      closing: 'Please confirm availability and current rate. Thank you.',
+      fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'dates', label: 'Dates', placeholder: 'Arrival - departure', required: true },
+        { name: 'guests', label: 'Guests', type: 'number', min: '1', required: true },
+        { name: 'roomType', label: 'Room type', placeholder: 'Preferred room type' },
+        { name: 'airportPickup', label: 'Airport pickup', type: 'select', options: ['Yes', 'No'], required: true, full: true }
+      ],
+      lines: [['Name', 'name'], ['Dates', 'dates'], ['Guests', 'guests'], ['Room Type', 'roomType'], ['Airport Pickup', 'airportPickup']]
+    },
+    dining: {
+      title: 'Dining enquiry',
+      opening: 'Hello Diva Villa, I would like to arrange dining.',
+      closing: 'Please confirm availability. Thank you.',
+      fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'date', label: 'Date', placeholder: 'Preferred date', required: true },
+        { name: 'guests', label: 'Number of guests', type: 'number', min: '1', required: true },
+        { name: 'mealRequest', label: 'Meal request', placeholder: 'Breakfast, buffet or menu choice', full: true }
+      ],
+      lines: [['Name', 'name'], ['Date', 'date'], ['Number of Guests', 'guests'], ['Meal Request', 'mealRequest']]
+    },
+    tour: {
+      title: 'Tour enquiry',
+      opening: 'Hello Diva Villa, I would like to plan a tour.',
+      closing: 'Please confirm availability and current rate. Thank you.',
+      fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'dates', label: 'Dates', placeholder: 'Preferred travel dates', required: true },
+        { name: 'guests', label: 'Guests', type: 'number', min: '1', required: true },
+        { name: 'destinations', label: 'Places to visit', placeholder: 'Example: Ella, Sigiriya', full: true },
+        { name: 'airportPickup', label: 'Airport pickup', type: 'select', options: ['Yes', 'No'], required: true, full: true }
+      ],
+      lines: [['Name', 'name'], ['Dates', 'dates'], ['Guests', 'guests'], ['Destinations', 'destinations'], ['Airport Pickup', 'airportPickup']]
+    },
+    group: {
+      title: 'Group booking enquiry',
+      opening: 'Hello Diva Villa, I would like to arrange a group booking.',
+      closing: 'Please confirm availability and current rate. Thank you.',
+      fields: [
+        { name: 'name', label: 'Name or agency', required: true },
+        { name: 'dates', label: 'Dates', placeholder: 'Arrival - departure', required: true },
+        { name: 'groupSize', label: 'Group size', type: 'number', min: '1', required: true },
+        { name: 'transport', label: 'Transport required', type: 'select', options: ['Yes', 'No'], required: true }
+      ],
+      lines: [['Name / Agency', 'name'], ['Dates', 'dates'], ['Group Size', 'groupSize'], ['Transport Required', 'transport']]
+    }
+  };
+
+  const whatsappModal = document.createElement('div');
+  whatsappModal.id = 'whatsapp-enquiry-modal';
+  whatsappModal.className = 'wa-form-modal';
+  whatsappModal.setAttribute('aria-hidden', 'true');
+  whatsappModal.innerHTML = `
+    <div class="wa-form-box" role="dialog" aria-modal="true" aria-labelledby="wa-form-title">
+      <button type="button" class="modal-close wa-close" aria-label="Close enquiry">&times;</button>
+      <div class="modal-eyebrow">WhatsApp enquiry</div>
+      <h2 class="modal-title" id="wa-form-title"></h2>
+      <p class="modal-sub">Enter a few details and your WhatsApp message will open ready to send.</p>
+      <form id="whatsapp-enquiry-form">
+        <div class="wa-form-grid"></div>
+        <div class="wa-form-actions">
+          <button type="button" class="wa-cancel">Cancel</button>
+          <button type="submit" class="btn btn-green wa-submit">Continue to WhatsApp <span class="arrow">&rarr;</span></button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(whatsappModal);
+
+  const whatsappForm = whatsappModal.querySelector('#whatsapp-enquiry-form');
+  const fieldGrid = whatsappModal.querySelector('.wa-form-grid');
+  const title = whatsappModal.querySelector('#wa-form-title');
+  let activeFlow = whatsappFlows.booking;
+
+  function renderWhatsappFields(flow) {
+    title.textContent = flow.title;
+    fieldGrid.innerHTML = flow.fields.map(field => {
+      const classes = field.full ? 'wa-field full' : 'wa-field';
+      const required = field.required ? ' required' : '';
+      if (field.type === 'select') {
+        return `<div class="${classes}"><label for="wa-${field.name}">${field.label}</label><select id="wa-${field.name}" name="${field.name}"${required}><option value="">Select</option>${field.options.map(option => `<option value="${option}">${option}</option>`).join('')}</select></div>`;
+      }
+      return `<div class="${classes}"><label for="wa-${field.name}">${field.label}</label><input id="wa-${field.name}" name="${field.name}" type="${field.type || 'text'}"${field.min ? ` min="${field.min}"` : ''}${field.placeholder ? ` placeholder="${field.placeholder}"` : ''}${required}></div>`;
+    }).join('');
+  }
+
+  function openWhatsappForm(type) {
+    activeFlow = whatsappFlows[type] || whatsappFlows.booking;
+    if (modal?.classList.contains('open')) {
+      modal.classList.remove('open');
+      modal.querySelector('.modal-box').classList.remove('in');
+    }
+    whatsappForm.reset();
+    renderWhatsappFields(activeFlow);
+    whatsappModal.classList.add('open');
+    whatsappModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    fieldGrid.querySelector('input, select')?.focus();
+  }
+
+  function closeWhatsappForm() {
+    whatsappModal.classList.remove('open');
+    whatsappModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  whatsappButtons.forEach(btn => {
+    btn.addEventListener('click', (event) => {
+      event.preventDefault();
+      openWhatsappForm(btn.dataset.whatsapp || 'booking');
+    });
   });
-});
+  whatsappModal.querySelector('.wa-close').addEventListener('click', closeWhatsappForm);
+  whatsappModal.querySelector('.wa-cancel').addEventListener('click', closeWhatsappForm);
+  whatsappModal.addEventListener('click', event => {
+    if (event.target === whatsappModal) closeWhatsappForm();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && whatsappModal.classList.contains('open')) closeWhatsappForm();
+  });
+  whatsappForm.addEventListener('submit', event => {
+    event.preventDefault();
+    const data = new FormData(whatsappForm);
+    const details = activeFlow.lines
+      .map(([label, name]) => `${label}: ${data.get(name) || '-'}`)
+      .join('\n');
+    const message = `${activeFlow.opening}\n\n${details}\n\n${activeFlow.closing}`;
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+    closeWhatsappForm();
+  });
+}
 
 // ---------- Video player (gallery)
 const featuredVideo = document.getElementById('featured-video');
